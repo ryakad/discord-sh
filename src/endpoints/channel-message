@@ -1,0 +1,8 @@
+#! /bin/sh -
+
+create_endpoint="/channels/{channel.id}/messages"
+
+channel_message_create() {
+    validate_opts_channel
+    request "POST" "$(echo "$create_endpoint" | sed "s/{channel.id}/$OPTS_CHANNEL/")"
+}

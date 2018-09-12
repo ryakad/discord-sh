@@ -1,0 +1,8 @@
+#! /bin/sh -
+
+read_endpoint="/channels/{channel.id}/messages"
+
+channel_messages_read() {
+    validate_opts_channel
+    request "GET" "$(echo "$read_endpoint" | sed "s/{channel.id}/$OPTS_CHANNEL/")"
+}

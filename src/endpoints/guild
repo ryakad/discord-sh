@@ -1,0 +1,30 @@
+#! /bin/sh -
+
+create_endpoint="/guilds/{guild.id}"
+read_endpoint="/guilds"
+update_endpoint="/guilds/{guild.id}"
+delete_endpoint="/guilds/{guild.id}"
+
+# `discord guild create`
+# https://discordapp.com/developers/docs/resources/guild#create-guild
+guild_create() {
+    log_debug "Creating Guild"
+}
+
+# `discord guild read --guild="..."`
+# https://discordapp.com/developers/docs/resources/guild#get-guild
+guild_read() {
+    log_debug "Reading Guild"
+}
+
+# `discord guild update --guild="..."`
+# https://discordapp.com/developers/docs/resources/guild#modify-guild
+guild_update() {
+    log_debug "Updating Guild"
+}
+
+# `discord guild delete --guild="..."`
+# https://discordapp.com/developers/docs/resources/guild#delete-guild
+guild_delete() {
+    log_debug "Deleting Guild"
+}

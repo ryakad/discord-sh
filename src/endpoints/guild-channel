@@ -1,0 +1,10 @@
+#! /bin/sh -
+
+create_endpoint="/guilds/{guild.id}/channels"
+
+# `discord guild-channels create`
+# https://discordapp.com/developers/docs/resources/guild#create-guild-channel
+guild_channel_create() {
+    method="POST"
+    log_debug "Creating Guild Channel"
+}

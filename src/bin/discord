@@ -1,0 +1,119 @@
+#! /bin/sh
+#
+# Library for integrating with the discord API
+#
+# Usage:
+#
+#   discord [opts] <resource> <method> [method_options]
+#
+
+DISCORDSH_VERSION="0.0.0"
+DISCORDSH_USER_AGENT="DiscordBot (https://github.com/ryakad/discord-sh, $DISCORDSH_VERSION)"
+
+DISCORDSH_BASEPATH="$(dirname $0)/.."
+
+DISCORDSH_ENDPOINTS_DIR="$DISCORDSH_BASEPATH/endpoints"
+
+# Import dependencies
+source "$DISCORDSH_BASEPATH/util/logger.sh"
+source "$DISCORDSH_BASEPATH/util/http.sh"
+source "$DISCORDSH_BASEPATH/util/validate.sh"
+
+# This is required. This can either be a bot token or a user token. Using the
+# correct format is up to the user
+#
+# DISCORDSH_API_TOKEN="Bot ...."      # FOR BOTS
+# DISCORDSH_API_TOKEN="Bearer ...."   # FOR OAUTH TOKENS
+#
+if [ -z "$DISCORDSH_API_TOKEN" ]
+then
+    log_error "\$DISCORDSH_API_TOKEN must be set to a valid token"
+    exit 1
+fi
+
+# Base URL for the discord api
+test -z $DISCORDSH_API_BASE_URL && DISCORDSH_API_BASE_URL="https://discordapp.com/api"
+
+# Whether we want to be showing debug information
+test -z $DISCORDSH_API_DEBUG && DISCORDSH_API_DEBUG=false
+
+resource="$1"
+action="$2"
+log_debug "Invoking action \"$action\" on resource \"$resource\""
+
+if [ ! -f "$DISCORDSH_ENDPOINTS_DIR/$resource" ]
+then
+    log_error "Unsupported resource \"$resource\""
+    exit 1
+fi
+
+action_function="$(echo "$resource" | tr - _)_$action"
+
+source "$DISCORDSH_ENDPOINTS_DIR/$resource"
+if [ "$(type -t "${action_function}")" != "function" ]
+then
+    log_error "Unsupported action \"$action\" on resource \"$resource\""
+    exit 1
+fi
+
+OPTS=$(getopt -o g:u:c:w:i:e: --long guild:,user:,channel:,webhook:,integration:,emoji: -- "$@")
+eval set -- "$OPTS"
+while true
+do
+    case "$1" in
+        -g|--guild)
+            OPTS_GUILD=$2
+            shift 2
+            ;;
+        -u|--user)
+            OPTS_USER=$2
+            shift 2
+            ;;
+        -c|--channel)
+            OPTS_CHANNEL=$2
+            shift 2
+            ;;
+        -w|--webhook)
+            OPTS_WEBHOOK=$2
+            shift 2
+            ;;
+        -i|--integration)
+            OPTS_INTEGRATION=$2
+            shift 2
+            ;;
+        -e|--emoji)
+            OPTS_EMOJI=$2
+            shift 2
+            ;;
+        --)
+            shift
+            break
+            ;;
+        *)
+            log_error "Error parsing opts"
+            exit 1
+            ;;
+    esac
+done
+
+if [ ! -t 0 ]
+then
+    while read -r line
+    do
+        if [ -z "$DISCORDSH_STDIN" ]
+        then
+            DISCORDSH_STDIN="$line"
+        else
+            DISCORDSH_STDIN="$DISCORDSH_STDIN\n$line"
+        fi
+    done
+fi
+
+log_debug "Reading json from stdin $DISCORDSH_STDIN"
+if ! echo "$DISCORDSH_STDIN" | jq . >/dev/null
+then
+    log_error "Invalid json provided on stdin"
+    exit 1
+fi
+
+eval $action_function
