@@ -1,9 +1,0 @@
-#! /bin/sh -
-
-read_endpoint="/channels/{channel.id}/messages"
-
-# `discord channel-messages read --channel "..."`
-# https://discordapp.com/developers/docs/resources/channel#get-channel-messages
-channel_messages_read() {
-    request "GET" "$(replace_tokens "$read_endpoint")"
-}

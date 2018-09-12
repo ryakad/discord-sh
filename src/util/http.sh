@@ -12,7 +12,7 @@ request() {
     log_debug "Calling request..."
 
     http_verb="$1"
-    endpoint_url="$2"
+    endpoint_url="$(replace_tokens "$2")"
     body="$3"
 
     # Build up the curl request
@@ -66,4 +66,103 @@ request() {
 # $2 - String containing all headings with 1 heading per line
 get_response_header() {
     echo "$2" | grep -E "^$1:" | sed "s/^[^:]*: //"
+}
+
+
+replace_tokens() {
+    log_debug "Calling replace_tokens..."
+
+    path="$1"
+    if echo $path | grep -q "{guild.id}"
+    then
+        log_debug "Replacing guild tag..."
+        validate_opts_guild
+        path="$(echo "$path" | sed "s/{guild.id}/$OPTS_GUILD/")"
+        log_debug "Path updated \"$path\""
+    fi
+
+    if echo $path | grep -q "{channel.id}"
+    then
+        log_debug "Replacing channel tag..."
+        validate_opts_channel
+        path="$(echo "$path" | sed "s/{channel.id}/$OPTS_CHANNEL/")"
+        log_debug "Path updated \"$path\""
+    fi
+
+    if echo $path | grep -q "{user.id}"
+    then
+        log_debug "Replacing user tag..."
+        validate_opts_user
+        path="$(echo "$path" | sed "s/{user.id}/$OPTS_USER/")"
+        log_debug "Path updated \"$path\""
+    fi
+
+    if echo $path | grep -q "{message.id}"
+    then
+        log_debug "Replacing message tag..."
+        validate_opts_user
+        path="$(echo "$path" | sed "s/{message.id}/$OPTS_MESSAGE/")"
+        log_debug "Path updated \"$path\""
+    fi
+
+    if echo $path | grep -q "{webhook.id}"
+    then
+        log_debug "Replacing webhook tag..."
+        validate_opts_webhook
+        path="$(echo "$path" | sed "s/{webhook.id}/$OPTS_WEBHOOK/")"
+        log_debug "Path updated \"$path\""
+    fi
+
+    if echo $path | grep -q "{integration.id}"
+    then
+        log_debug "Replacing integration tag..."
+        validate_opts_integration
+        path="$(echo "$path" | sed "s/{integration.id}/$OPTS_INTEGRATION/")"
+        log_debug "Path updated \"$path\""
+    fi
+
+    if echo $path | grep -q "{emoji}"
+    then
+        log_debug "Replacing emoji tag..."
+        validate_opts_emoji
+        path="$(echo "$path" | sed "s/{emoji}/$OPTS_EMOJI/")"
+        log_debug "Path updated \"$path\""
+    fi
+
+    echo $path
+}
+
+validate_opts() {
+    variable="$1"
+    opts="$2"
+
+    if [ -z "${!variable}" ]
+    then
+        log_error "Missing required option ${opts}"
+        exit 1
+    fi
+}
+
+validate_opts_guild() {
+    validate_opts "OPTS_GUILD" "-g|--guild"
+}
+
+validate_opts_user() {
+    validate_opts "OPTS_USER" "-u|--user"
+}
+
+validate_opts_channel() {
+    validate_opts "OPTS_CHANNEL" "-c|--channel"
+}
+
+validate_opts_webhook() {
+    validate_opts "OPTS_WEBHOOK" "-w|--webhook"
+}
+
+validate_opts_integration() {
+    validate_opts "OPTS_INTEGRATION" "-i|--integration"
+}
+
+validate_opts_emoji() {
+    validate_opts "OPTS_EMOJI" "-e|--emoji"
 }

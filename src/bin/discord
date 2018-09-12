@@ -16,9 +16,7 @@ DISCORDSH_ENDPOINTS_DIR="$DISCORDSH_BASEPATH/endpoints"
 
 # Import dependencies
 source "$DISCORDSH_BASEPATH/util/logger.sh"
-source "$DISCORDSH_BASEPATH/util/endpoints.sh"
 source "$DISCORDSH_BASEPATH/util/http.sh"
-source "$DISCORDSH_BASEPATH/util/validate.sh"
 
 # This is required. This can either be a bot token or a user token. Using the
 # correct format is up to the user
@@ -38,24 +36,7 @@ test -z $DISCORDSH_API_BASE_URL && DISCORDSH_API_BASE_URL="https://discordapp.co
 # Whether we want to be showing debug information
 test -z $DISCORDSH_API_DEBUG && DISCORDSH_API_DEBUG=false
 
-resource="$1"
-action="$2"
-log_debug "Invoking action \"$action\" on resource \"$resource\""
-
-if [ ! -f "$DISCORDSH_ENDPOINTS_DIR/$resource" ]
-then
-    log_error "Unsupported resource \"$resource\""
-    exit 1
-fi
-
-action_function="$(echo "$resource" | tr - _)_$action"
-
-source "$DISCORDSH_ENDPOINTS_DIR/$resource"
-if [ "$(type -t "${action_function}")" != "function" ]
-then
-    log_error "Unsupported action \"$action\" on resource \"$resource\""
-    exit 1
-fi
+method="$1"
 
 OPTS=$(getopt -o g:u:c:w:i:e: --long guild:,user:,channel:,webhook:,integration:,emoji: -- "$@")
 eval set -- "$OPTS"
@@ -124,5 +105,26 @@ then
         exit 1
     fi
 fi
+
+case $method in
+    "get-channel")
+        request "GET" "/channels/{channel.id}";;
+    "modify-channel")
+        request "PUT" "/channels/{channel.id}";;
+    "delete-channel"|"close-channel")
+        request "DELETE" "/channels/{channel.id}";;
+    "get-channel-messages")
+        request "GET" "/channels/{channel.id}/messages";;
+    "get-channel-message")
+        request "GET" "/channels/{channel.id}/messages/{message.id}";;
+    "create-message")
+        request "POST" "/channels/{channel.id}/messages";;
+    "create-reaction")
+        request "PUT" "/channels/{channel.id}/messages/{message.id}/reactions/{emoji}/@me";;
+    
+    *)
+        log_error "Unsupported method \"$method\""
+        exit 1;;
+esac
 
 eval $action_function
