@@ -1,0 +1,355 @@
+#! /bin/sh
+#
+# Library for integrating with the discord API
+#
+# Usage:
+#
+#   discord [method] [opts]
+#
+
+DISCORDSH_VERSION="0.0.0"
+DISCORDSH_USER_AGENT="DiscordBot (https://github.com/ryakad/discord-sh, $DISCORDSH_VERSION)"
+
+DISCORDSH_BASEPATH="$(dirname $0)/.."
+
+DISCORDSH_ENDPOINTS_DIR="$DISCORDSH_BASEPATH/endpoints"
+
+# Setup base colors, allowing them to be overridden by setting these variables globally.
+test -z $DISCORDSH_COLOR_ERROR && DISCORDSH_COLOR_ERROR="\033[1;31m" # red
+test -z $DISCORDSH_COLOR_WARNING && DISCORDSH_COLOR_WARNING="\033[0;33m" # yellow
+test -z $DISCORDSH_COLOR_SUCCESS && DISCORDSH_COLOR_SUCCESS="\033[0;36m" # cyan
+test -z $DISCORDSH_COLOR_INFO && DISCORDSH_COLOR_INFO="" # off by default
+test -z $DISCORDSH_COLOR_DEBUG && DISCORDSH_COLOR_DEBUG="" # off by default
+
+color_reset="\033[0m"
+
+log_error() {
+    echo -e "$DISCORDSH_COLOR_ERROR[ERROR] $@$color_reset" 1>&2
+}
+
+log_warning() {
+    echo -e "$DISCORDSH_COLOR_WARNING[WARNING] $@$color_reset" 1>&2
+}
+
+log_info() {
+    echo -e "$DISCORDSH_COLOR_INFO[INFO] $@$color_reset" 1>&2
+}
+
+log_debug() {
+    echo -e "$DISCORDSH_COLOR_DEBUG[DEBUG] $@$color_reset" 1>&2
+}
+
+log_success() {
+    echo -e "$DISCORDSH_COLOR_SUCCESS[SUCCESS] $@$color_reset" 1>&2
+}
+
+# Function for multiline logging to allow prefixing each line with the log 
+# level for easier parsing of output.
+#
+# $1 - The logging function to use
+# $2 - A string containing the multiline output
+# $3 - An optional heading for the log. This will be printed before writing
+#      the multiline output
+log_multiline() {
+    [ ! -z "$3" ] && eval $1 "$3" # If a header is provided log that first
+    while read -r line
+    do
+        eval $1 $(printf "    %q" "$line")
+    done <<< "$2"
+}
+
+# Make an HTTP request using CURL
+#
+# $1 - The HTP verb to use for this request
+# $2 - The endpoint path to request
+# $3 - The data to submit (if any)
+request() {
+    log_debug "Calling request..."
+
+    http_verb="$1"
+    endpoint_url="$(replace_tokens "$2")"
+    body="$3"
+
+    # Build up the curl request
+    curl_opts="-sS -v -H 'Content-Type: application/json'"
+    curl_opts=$curl_opts" -H 'Authorization: $DISCORDSH_API_TOKEN'"
+    curl_opts=$curl_opts" -A '$DISCORDSH_USER_AGENT'"
+
+    if ! echo "$http_verb" | grep -E '^GET|POST|PUT|PATCH|DELETE$' 2>&1 >/dev/null
+    then
+        log_error "HTTP Verb \"$http_verb\" is not supported"
+        exit 1
+    fi
+
+    # Adding '-X GET' raises a warning stating that it not required as it is 
+    # assumed by default.
+    if ! echo "$http_verb" | grep "GET" 2>&1 >/dev/null
+    then
+        curl_opts=$curl_opts" -X $http_verb"
+    fi
+
+    if [ ! -z "$DISCORDSH_STDIN" ]
+    then
+        curl_opts=$curl_opts" -d '$DISCORDSH_STDIN'"
+    fi
+
+    # Do not display the users auth token in log messages
+    log_debug "Using curl options: "$(echo $curl_opts \
+        | sed "s/Authorization: [^']*/Authorization: *****/")
+
+    curl_stderr_file="$(mktemp)"
+    response_stdout=$(eval curl $curl_opts "$DISCORDSH_API_BASE_URL$endpoint_url" 2>$curl_stderr_file)
+    response_stderr="$(cat "$curl_stderr_file")"
+    rm -f "$curl_stderr_file"
+
+    log_debug "Response stdout: $response_stdout"
+    log_multiline log_debug "$response_stderr" "Response stderr:"
+
+    # Transform the response headers into an array
+    response_headers=$(echo "$response_stderr" \
+        | grep -E '^<' \
+        | sed 's/< //')
+    
+    # TODO - Handle rate limiting
+
+    echo "$response_stdout" | jq
+}
+
+# Return the value for a requested response header
+#
+# $1 - The response header we want the value for
+# $2 - String containing all headings with 1 heading per line
+get_response_header() {
+    echo "$2" | grep -E "^$1:" | sed "s/^[^:]*: //"
+}
+
+
+replace_tokens() {
+    log_debug "Calling replace_tokens..."
+
+    path="$1"
+    if echo $path | grep -q "{guild.id}"
+    then
+        log_debug "Replacing guild tag..."
+        validate_opts "OPTS_GUILD" "-g|--guild"
+        path="$(echo "$path" | sed "s/{guild.id}/$OPTS_GUILD/")"
+        log_debug "Path updated \"$path\""
+    fi
+
+    if echo $path | grep -q "{channel.id}"
+    then
+        log_debug "Replacing channel tag..."
+        validate_opts "OPTS_CHANNEL" "-c|--channel"
+        path="$(echo "$path" | sed "s/{channel.id}/$OPTS_CHANNEL/")"
+        log_debug "Path updated \"$path\""
+    fi
+
+    if echo $path | grep -q "{user.id}"
+    then
+        log_debug "Replacing user tag..."
+        validate_opts "OPTS_USER" "-u|--user"
+        path="$(echo "$path" | sed "s/{user.id}/$OPTS_USER/")"
+        log_debug "Path updated \"$path\""
+    fi
+
+    if echo $path | grep -q "{message.id}"
+    then
+        log_debug "Replacing message tag..."
+        validate_opts "OPTS_MESSAGE" "-m|--message"
+        path="$(echo "$path" | sed "s/{message.id}/$OPTS_MESSAGE/")"
+        log_debug "Path updated \"$path\""
+    fi
+
+    if echo $path | grep -q "{webhook.id}"
+    then
+        log_debug "Replacing webhook tag..."
+        validate_opts "OPTS_WEBHOOK" "-w|--webhook"
+        path="$(echo "$path" | sed "s/{webhook.id}/$OPTS_WEBHOOK/")"
+        log_debug "Path updated \"$path\""
+    fi
+
+    if echo $path | grep -q "{integration.id}"
+    then
+        log_debug "Replacing integration tag..."
+        validate_opts "OPTS_INTEGRATION" "-i|--integration"
+        path="$(echo "$path" | sed "s/{integration.id}/$OPTS_INTEGRATION/")"
+        log_debug "Path updated \"$path\""
+    fi
+
+    if echo $path | grep -q "{overwrite.id}"
+    then
+        log_debug "Replacing overwrite tag..."
+        validate_opts "OPTS_OVERWRITE" "-o|--overwrite"
+        path="$(echo "$path" | sed "s/{overwrite.id}/$OPTS_INTEGRATION/")"
+        log_debug "Path updated \"$path\""
+    fi
+
+    if echo $path | grep -q "{emoji}"
+    then
+        log_debug "Replacing emoji tag..."
+        validate_opts "OPTS_EMOJI" "-e|--emoji"
+        path="$(echo "$path" | sed "s/{emoji}/$OPTS_EMOJI/")"
+        log_debug "Path updated \"$path\""
+    fi
+
+    echo $path
+}
+
+validate_opts() {
+    variable="$1"
+    opts="$2"
+
+    if [ -z "${!variable}" ]
+    then
+        log_error "Missing required option ${opts}"
+        exit 1
+    fi
+}
+
+# This is required. This can either be a bot token or a user token. Using the
+# correct format is up to the user
+#
+# DISCORDSH_API_TOKEN="Bot ...."      # FOR BOTS
+# DISCORDSH_API_TOKEN="Bearer ...."   # FOR OAUTH TOKENS
+#
+if [ -z "$DISCORDSH_API_TOKEN" ]
+then
+    log_error "\$DISCORDSH_API_TOKEN must be set to a valid token"
+    exit 1
+fi
+
+# Base URL for the discord api
+test -z $DISCORDSH_API_BASE_URL && DISCORDSH_API_BASE_URL="https://discordapp.com/api"
+# Whether we want to be showing debug information
+test -z $DISCORDSH_API_DEBUG && DISCORDSH_API_DEBUG=false
+
+method="$1"
+
+OPTS=$(getopt -o g:u:c:w:i:e: --long guild:,user:,channel:,webhook:,integration:,emoji: -- "$@")
+eval set -- "$OPTS"
+while true
+do
+    case "$1" in
+        -g|--guild)
+            OPTS_GUILD="$2"
+            shift 2
+            ;;
+        -u|--user)
+            OPTS_USER="$2"
+            shift 2
+            ;;
+        -c|--channel)
+            OPTS_CHANNEL="$2"
+            shift 2
+            ;;
+        -m|--message)
+            OPTS_MESSAGE="$2"
+            shift 2
+            ;;
+        -o|--overwrite)
+            OPTS_OVERWRITE="$2"
+            shift 2
+            ;;
+        -w|--webhook)
+            OPTS_WEBHOOK="$2"
+            shift 2
+            ;;
+        -i|--integration)
+            OPTS_INTEGRATION="$2"
+            shift 2
+            ;;
+        -e|--emoji)
+            OPTS_EMOJI="$2"
+            shift 2
+            ;;
+        --)
+            shift
+            break
+            ;;
+        *)
+            log_error "Error parsing opts"
+            exit 1
+            ;;
+    esac
+done
+
+if [ ! -t 0 ]
+then
+    while read -r line
+    do
+        if [ -z "$DISCORDSH_STDIN" ]
+        then
+            DISCORDSH_STDIN="$line"
+        else
+            DISCORDSH_STDIN="$DISCORDSH_STDIN\n$line"
+        fi
+    done
+fi
+
+if [ ! -z "$DISCORDSH_STDIN" ]
+then
+    log_debug "Reading json from stdin $DISCORDSH_STDIN"
+    if ! echo "$DISCORDSH_STDIN" | jq . >/dev/null
+    then
+        log_error "Invalid json provided on stdin"
+        exit 1
+    fi
+fi
+
+case $method in
+    # Channel endpoints
+    "get-channel")
+        request "GET" "/channels/{channel.id}";;
+    "modify-channel")
+        request "PUT" "/channels/{channel.id}";;
+    "delete-channel"|"close-channel")
+        request "DELETE" "/channels/{channel.id}";;
+    "get-channel-messages")
+        request "GET" "/channels/{channel.id}/messages";;
+    "get-channel-message")
+        request "GET" "/channels/{channel.id}/messages/{message.id}";;
+    "create-message")
+        request "POST" "/channels/{channel.id}/messages";;
+    "create-reaction")
+        request "PUT" "/channels/{channel.id}/messages/{message.id}/reactions/{emoji}/@me";;
+    "delete-own-reaction")
+        request "DELETE" "/channels/{channel.id}/messages/{message.id}/reactions/{emoji}/@me";;
+    "delete-user-reaction")
+        request "DELETE" "/channels/{channel.id}/messages/{message.id}/reactions/{emoji}/{user.id}";;
+    "get-reactions")
+        request "GET" "/channels/{channel.id}/messages/{message.id}/reactions/{emoji}";;
+    "delete-all-reactions")
+        request "DELETE" "/channels/{channel.id}/messages/{message.id}/reactions";;
+    "edit-message")
+        request "PATCH" "/channels/{channel.id}/messages/{message.id}";;
+    "delete-message")
+        request "DELETE" "/channels/{channel.id}/messages/{message.id}";;
+    "bulk-delete-messages")
+        request "POST" "/channels/{channel.id}/messages/bulk-delete";;
+    "edit-channel-permissions")
+        request "PUT" "/channels/{channel.id}/permissions/{overwrite.id}";;
+    "get-channel-invites")
+        request "GET" "/channels/{channel.id}/invites";;
+    "create-channel-invite")
+        request "POST" "/channels/{channel.id}/invites";;
+    "delete-channel-permission")
+        request "DELETE" "/channels/{channel.id}/permissions/{overwrite.id}";;
+    "trigger-typing-indicator")
+        request "POST" "/channels/{channel.id}/typing";;
+    "get-pinned-messages")
+        request "GET" "/channels/{channel.id}/pins";;
+    "add-pinned-channel-message")
+        request "PUT" "/channels/{channel.id}/pins/{message.id}";;
+    "delete-pinned-channel-message")
+        request "DELETE" "/channels/{channel.id}/pins/{message.id}";;
+    "group-dm-add-recipient")
+        request "PUT" "/channels/{channel.id}/recipients/{user.id}";;
+    "group-dm-remove-recipient")
+        request "DELETE" "/channels/{channel.id}/recipients/{user.id}";;
+    *)
+        log_error "Unsupported method \"$method\""
+        exit 1
+        ;;
+esac
+
+eval $action_function
