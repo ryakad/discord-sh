@@ -16,6 +16,7 @@ DISCORDSH_ENDPOINTS_DIR="$DISCORDSH_BASEPATH/endpoints"
 
 # Import dependencies
 source "$DISCORDSH_BASEPATH/util/logger.sh"
+source "$DISCORDSH_BASEPATH/util/endpoints.sh"
 source "$DISCORDSH_BASEPATH/util/http.sh"
 source "$DISCORDSH_BASEPATH/util/validate.sh"
 
@@ -73,6 +74,10 @@ do
             OPTS_CHANNEL=$2
             shift 2
             ;;
+        -m|--message)
+            OPTS_MESSAGE=$2
+            shift 2
+            ;;
         -w|--webhook)
             OPTS_WEBHOOK=$2
             shift 2
@@ -109,11 +114,15 @@ then
     done
 fi
 
-log_debug "Reading json from stdin $DISCORDSH_STDIN"
-if ! echo "$DISCORDSH_STDIN" | jq . >/dev/null
+
+if [ ! -z "$DISCORDSH_STDIN" ]
 then
-    log_error "Invalid json provided on stdin"
-    exit 1
+    log_debug "Reading json from stdin $DISCORDSH_STDIN"
+    if ! echo "$DISCORDSH_STDIN" | jq . >/dev/null
+    then
+        log_error "Invalid json provided on stdin"
+        exit 1
+    fi
 fi
 
 eval $action_function

@@ -9,6 +9,8 @@
 # $2 - The endpoint path to request
 # $3 - The data to submit (if any)
 request() {
+    log_debug "Calling request..."
+
     http_verb="$1"
     endpoint_url="$2"
     body="$3"

@@ -8,23 +8,23 @@ delete_endpoint="/guilds/{guild.id}"
 # `discord guild create`
 # https://discordapp.com/developers/docs/resources/guild#create-guild
 guild_create() {
-    log_debug "Creating Guild"
+    request "POST" "$(replace_tokens "$create_endpoint")"
 }
 
 # `discord guild read --guild="..."`
 # https://discordapp.com/developers/docs/resources/guild#get-guild
 guild_read() {
-    log_debug "Reading Guild"
+    request "GET" "$(replace_tokens "$read_endpoint")"
 }
 
 # `discord guild update --guild="..."`
 # https://discordapp.com/developers/docs/resources/guild#modify-guild
 guild_update() {
-    log_debug "Updating Guild"
+    request "PATCH" "$(replace_tokens "$update_endpoint")"
 }
 
 # `discord guild delete --guild="..."`
 # https://discordapp.com/developers/docs/resources/guild#delete-guild
 guild_delete() {
-    log_debug "Deleting Guild"
+    request "DELETE" "$(replace_tokens "$delete_endpoint")"
 }

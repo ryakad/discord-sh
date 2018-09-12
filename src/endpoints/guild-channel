@@ -2,7 +2,7 @@
 
 create_endpoint="/guilds/{guild.id}/channels"
 
-# `discord guild-channels create`
+# `discord guild-channels create --guild "..."`
 # https://discordapp.com/developers/docs/resources/guild#create-guild-channel
 guild_channel_create() {
     method="POST"

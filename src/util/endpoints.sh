@@ -68,3 +68,68 @@ DISCORDSH_API_ENDPOINT_WEBHOOK_WITH_TOKEN="/webhooks/{webhook.id}/{webhook.token
 
 DISCORDSH_API_ENDPOINT_WEBHOOK_SLACK="/webhooks/{webhook.id}/{webhook.token}/slack"
 DISCORDSH_API_ENDPOINT_WEBHOOK_GITHUB="/webhooks/{webhook.id}/{webhook.token}/github"
+
+
+replace_tokens() {
+    log_debug "Calling replace_tokens..."
+
+    path="$1"
+    if echo $path | grep -q "{guild.id}"
+    then
+        log_debug "Replacing guild tag..."
+        validate_opts_guild
+        path="$(echo "$path" | sed "s/{guild.id}/$OPTS_GUILD/")"
+        log_debug "Path updated \"$path\""
+    fi
+
+    if echo $path | grep -q "{channel.id}"
+    then
+        log_debug "Replacing channel tag..."
+        validate_opts_channel
+        path="$(echo "$path" | sed "s/{channel.id}/$OPTS_CHANNEL/")"
+        log_debug "Path updated \"$path\""
+    fi
+
+    if echo $path | grep -q "{user.id}"
+    then
+        log_debug "Replacing user tag..."
+        validate_opts_user
+        path="$(echo "$path" | sed "s/{user.id}/$OPTS_USER/")"
+        log_debug "Path updated \"$path\""
+    fi
+
+    if echo $path | grep -q "{message.id}"
+    then
+        log_debug "Replacing message tag..."
+        validate_opts_user
+        path="$(echo "$path" | sed "s/{message.id}/$OPTS_MESSAGE/")"
+        log_debug "Path updated \"$path\""
+    fi
+
+    if echo $path | grep -q "{webhook.id}"
+    then
+        log_debug "Replacing webhook tag..."
+        validate_opts_webhook
+        path="$(echo "$path" | sed "s/{webhook.id}/$OPTS_WEBHOOK/")"
+        log_debug "Path updated \"$path\""
+    fi
+
+    if echo $path | grep -q "{integration.id}"
+    then
+        log_debug "Replacing integration tag..."
+        validate_opts_integration
+        path="$(echo "$path" | sed "s/{integration.id}/$OPTS_INTEGRATION/")"
+        log_debug "Path updated \"$path\""
+    fi
+
+    if echo $path | grep -q "{emoji}"
+    then
+        log_debug "Replacing emoji tag..."
+        validate_opts_emoji
+        path="$(echo "$path" | sed "s/{emoji}/$OPTS_EMOJI/")"
+        log_debug "Path updated \"$path\""
+    fi
+
+    echo $path
+}
+
