@@ -43,7 +43,7 @@ log_success() {
     echo -e "$DISCORDSH_COLOR_SUCCESS[SUCCESS] $@$color_reset" 1>&2
 }
 
-# Function for multiline logging to allow prefixing each line with the log 
+# Function for multiline logging to allow prefixing each line with the log
 # level for easier parsing of output.
 #
 # $1 - The logging function to use
@@ -81,7 +81,7 @@ request() {
         exit 1
     fi
 
-    # Adding '-X GET' raises a warning stating that it not required as it is 
+    # Adding '-X GET' raises a warning stating that it not required as it is
     # assumed by default.
     if ! echo "$http_verb" | grep "GET" 2>&1 >/dev/null
     then
@@ -109,7 +109,7 @@ request() {
     response_headers=$(echo "$response_stderr" \
         | grep -E '^<' \
         | sed 's/< //')
-    
+
     # TODO - Handle rate limiting
 
     echo "$response_stdout" | jq
@@ -161,7 +161,7 @@ replace_tokens() {
 
     if echo $path | grep -q "{webhook.id}"
     then
-        path=$(replace_token "$path" "{webhook.id}" "OPTS_WEBHOOK" "-w|--webhook")
+        path=$(replace_token "$path" "{webhook.id}" "OPTS_WEBHOOK_ID" "-w|--webhook")
     fi
 
     if echo $path | grep -q "{integration.id}"
@@ -200,8 +200,7 @@ test -z $DISCORDSH_API_BASE_URL && DISCORDSH_API_BASE_URL="https://discordapp.co
 test -z $DISCORDSH_API_DEBUG && DISCORDSH_API_DEBUG=false
 
 method="$1"
-
-OPTS=$(getopt -o g:u:c:w:i:e: --long guild:,user:,channel:,webhook:,integration:,emoji: -- "$@")
+OPTS=$(getopt -o g:u:c:m:o:i:e: --long guild:,user:,channel:,message:,overwrite:,webhook-id:,webhook-token:,integration:,emoji: -- "$@")
 eval set -- "$OPTS"
 while true
 do
@@ -226,8 +225,12 @@ do
             OPTS_OVERWRITE="$2"
             shift 2
             ;;
-        -w|--webhook)
-            OPTS_WEBHOOK="$2"
+        --webhook-id)
+            OPTS_WEBHOOK_ID="$2"
+            shift 2
+            ;;
+        --webhook-token)
+            OPTS_WEBHOOK_TOKEN="$2"
             shift 2
             ;;
         -i|--integration)
@@ -273,7 +276,10 @@ then
 fi
 
 case $method in
-    # Channel endpoints
+    # Audit Log endpoints
+    "get-guild-audit-log")
+        request "GET" "/guilds/{guild.id}/audit-logs";;
+    # Channel Endpoints
     "get-channel")
         request "GET" "/channels/{channel.id}";;
     "modify-channel")
@@ -322,6 +328,142 @@ case $method in
         request "PUT" "/channels/{channel.id}/recipients/{user.id}";;
     "group-dm-remove-recipient")
         request "DELETE" "/channels/{channel.id}/recipients/{user.id}";;
+    # Emoji Endpoints
+    "list-guild-emojis")
+        request "GET" "/guilds/{guild.id}/emojis";;
+    "get-guild-emoji")
+        request "GET" "/guilds/{guild.id}/emojis/{emoji.id}";;
+    "create-guild-emoji")
+        request "POST" "/guilds/{guild.id}/emojis";;
+    "modify-guild-emoji")
+        request "PATCH" "/guilds/{guild.id}/emojis/{emoji.id}";;
+    "delete-guild-emoji")
+        request "DELETE" "/guilds/{guild.id}/emojis/{emoji.id}";;
+    # Guild Endpoints
+    "create-guild")
+        request "POST" "/guilds";;
+    "get-guild")
+        request "GET" "/guilds/{guild.id}";;
+    "modify-guild")
+        request "PATCH" "/guilds/{guild.id}";;
+    "delete-guild")
+        request "DELETE" "/guilds/{guild.id}";;
+    "get-guild-channels")
+        request "GET" "/guilds/{guild.id}/channels";;
+    "create-guild-channel")
+        request "POST" "/guilds/{guild.id}/channels";;
+    "modify-guild-channel-positions")
+        request "PATCH" "/guilds/{guild.id}/channels";;
+    "get-guild-member")
+        request "GET" "/guilds/{guild.id}/members/{user.id}";;
+    "list-guild-members")
+        request "GET" "/guilds/{guild.id}/members";;
+    "add-guild-member")
+        request "PUT" "/guilds/{guild.id}/members/{user.id}";;
+    "modify-guild-member")
+        request "PATCH" "/guilds/{guild.id}/members/{user.id}";;
+    "modify-current-user-nick")
+        request "PATCH" "/guilds/{guild.id}/members/@me/nick";;
+    "add-guild-member-role")
+        request "PUT" "/guilds/{guild.id}/members/{user.id}/roles/{role.id}";;
+    "remove-guild-member-role")
+        request "DELETE" "/guilds/{guild.id}/members/{user.id}/roles/{role.id}";;
+    "remove-guild-member")
+        request "DELETE" "/guilds/{guild.id}/members/{user.id}";;
+    "get-guild-bans")
+        request "GET" "/guilds/{guild.id}/bans";;
+    "get-guild-ban")
+        request "GET" "/guilds/{guild.id}/bans/{user.id}";;
+    "create-guild-ban")
+        request "PUT" "/guilds/{guild.id}/bans/{user.id}";;
+    "remove-guild-ban")
+        request "DELETE" "/guilds/{guild.id}/bans/{user.id}";;
+    "get-guild-roles")
+        request "GET" "/guilds/{guild.id}/roles";;
+    "create-guild-role")
+        request "POST" "/guilds/{guild.id}/roles";;
+    "modify-guild-role-positions")
+        request "PATCH" "/guilds/{guild.id}/roles";;
+    "modify-guild-role")
+        request "PATCH" "/guilds/{guild.id}/roles/{role.id}";;
+    "delete-guild-role")
+        request "DELETE" "/guilds/{guild.id}/roles/{role.id}";;
+    "get-guild-prune-count")
+        request "GET" "/guilds/{guild.id}/prune";;
+    "begin-guild-prune")
+        request "POST" "/guilds/{guild.id}/prune";;
+    "get-guild-voice-regions")
+        request "GET" "/guilds/{guild.id}/regions";;
+    "get-guild-invites")
+        request "GET" "/guilds/{guild.id}/invites";;
+    "get-guild-integrations")
+        request "GET" "/guilds/{guild.id}/integrations";;
+    "create-guild-integration")
+        request "POST" "/guilds/{guild.id}/integrations";;
+    "modify-guild-integration")
+        request "PATCH" "/guilds/{guild.id}/integrations/{integration.id}";;
+    "delete-guild-integration")
+        request "DELETE" "/guilds/{guild.id}/integrations/{integration.id}";;
+    "sync-guild-integration")
+        request "POST" "/guilds/{guild.id}/integrations/{integration.id}/sync";;
+    "get-guild-embed")
+        request "GET" "/guilds/{guild.id}/embed";;
+    "modify-guild-embed")
+        request "PATCH" "/guilds/{guild.id}/embed";;
+    "get-guild-vanity-url")
+        request "GET" "/guilds/{guild.id}/vanity-url";;
+    # Invite Endpoints
+    "get-invite")
+        request "GET" "/invites/{invite.code}";;
+    "delete-invite")
+        request "DELETE" "/invites/{invite.code}";;
+    # User Endpoints
+    "get-current-user")
+        request "GET" "/users/@me";;
+    "get-user")
+        request "GET" "/users/{user.id}";;
+    "modify-current-user")
+        request "PATCH" "/users/@me";;
+    "get-current-user-guilds")
+        request "GET" "/users/@me/guilds";;
+    "leave-guild")
+        request "DELETE" "/users/@me/guilds/{guild.id}";;
+    "get-user-dms")
+        request "GET" "/users/@me/channels";;
+    "create-dm")
+        request "POST" "/users/@me/channels";;
+    "create-group-dm")
+        request "POST" "/users/@me/channels";;
+    "get-user-connections")
+        request "GET" "/users/@me/connections";;
+    # Voice Endpoints
+    "list-voice-regions")
+        request "GET" "/voice/regions";;
+    # Webhook Endpoints
+    "create-webhook")
+        request "POST" "/channels/{channel.id}/webhooks";;
+    "get-channel-webhooks")
+        request "GET" "/channels/{channel.id}/webhooks";;
+    "get-guild-webhooks")
+        request "GET" "/guilds/{guild.id}/webhooks";;
+    "get-webhook")
+        request "GET" "/webhooks/{webhook.id}";;
+    "get-webhook-with-token")
+        request "GET" "/webhooks/{webhook.id}/{webhook.token}";;
+    "modify-webhook")
+        request "PATCH" "/webhooks/{webhook.id}";;
+    "modify-webhook-with-token")
+        request "PATCH" "/webhooks/{webhook.id}/{webhook.token}";;
+    "delete-webhook")
+        request "DELETE" "/webhooks/{webhook.id}";;
+    "delete-webhook-with-token")
+        request "DELETE" "/webhooks/{webhook.id}/{webhook.token}";;
+    "execute-webhook")
+        request "POST" "/webhooks/{webhook.id}/{webhook.token}";;
+    "execute-slack-compatible-webhook")
+        request "POST" "/webhooks/{webhook.id}/{webhook.token}/slack";;
+    "execute-github-compatible-webhook")
+        request "POST" "/webhooks/{webhook.id}/{webhook.token}/github";;
     *)
         log_error "Unsupported method \"$method\""
         exit 1
