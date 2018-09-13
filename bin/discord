@@ -14,13 +14,19 @@ DISCORDSH_ENDPOINTS_DIR="$DISCORDSH_BASEPATH/endpoints"
 
 color_reset="\033[0m"
 test -z $DISCORDSH_COLOR_ERROR && DISCORDSH_COLOR_ERROR="\033[1;31m" # red
-log_error() { echo -e "$DISCORDSH_COLOR_ERROR[ERROR] $@$color_reset" 1>&2 }
+log_error() {
+    echo "$DISCORDSH_COLOR_ERROR[ERROR] $@$color_reset" 1>&2
+}
 
 test -z $DISCORDSH_COLOR_WARNING && DISCORDSH_COLOR_WARNING="\033[0;33m" # yellow
-log_warning() { echo -e "$DISCORDSH_COLOR_WARNING[WARNING] $@$color_reset" 1>&2 }
+log_warning() {
+    echo "$DISCORDSH_COLOR_WARNING[WARNING] $@$color_reset" 1>&2
+}
 
 test -z $DISCORDSH_COLOR_DEBUG && DISCORDSH_COLOR_DEBUG="" # off by default
-log_debug() { echo -e "$DISCORDSH_COLOR_DEBUG[DEBUG] $@$color_reset" 1>&2 }
+log_debug() {
+    echo "$DISCORDSH_COLOR_DEBUG[DEBUG] $@$color_reset" 1>&2
+}
 
 # Function for multiline logging to allow prefixing each line with the log
 # level for easier parsing of output.
@@ -178,24 +184,29 @@ fi
 
 # Base URL for the discord api
 test -z $DISCORDSH_API_BASE_URL && DISCORDSH_API_BASE_URL="https://discordapp.com/api"
+
 # Whether we want to be showing debug information
 test -z $DISCORDSH_API_DEBUG && DISCORDSH_API_DEBUG=false
 
-method="$1"
-OPTS=$(getopt -o "g:u:c:m:o:i:e:" --long "guild:,user:,channel:,message:,overwrite:,webhook-id:,webhook-token:,integration:,emoji:" -- "$@")
+if echo "$@" | grep -qE "\-\-help|help|\-h"
+then
+  echo "TODO - Display help message"
+  exit 0
+fi
+
+if echo "$@" | grep -qE "\-\-version|version|\-v"
+then
+  echo "$DISCORDSH_VERSION"
+  exit 0
+fi
+
+OPTS=$(getopt -o "h:v:g:u:c:m:o:i:e:" --long "help:,version:,guild:,user:,channel:,message:,overwrite:,webhook-id:,webhook-token:,integration:,emoji:" -- "$@")
 eval set -- "$OPTS"
 
+method="$1"
 while true
 do
     case "$1" in
-        -h|--help|help)
-            echo "TODO - Display Help Message"
-            exit 0
-            ;;
-        -v|--version|version)
-            echo $DISCORDSH_VERSION
-            exit 0
-            ;;
         -g|--guild)
             OPTS_GUILD="$2"
             shift 2
@@ -268,193 +279,193 @@ fi
 
 case $method in
     # Audit Log endpoints
-    "get-guild-audit-log")
-        request "GET" "/guilds/{guild.id}/audit-logs" ;;
+    'get-guild-audit-log')
+        request 'GET' '/guilds/{guild.id}/audit-logs' ;;
     # Channel Endpoints
-    "get-channel")
-        request "GET" "/channels/{channel.id}" ;;
-    "modify-channel")
-        request "PUT" "/channels/{channel.id}" ;;
-    "delete-channel"|"close-channel")
-        request "DELETE" "/channels/{channel.id}" ;;
-    "get-channel-messages")
-        request "GET" "/channels/{channel.id}/messages" ;;
-    "get-channel-message")
-        request "GET" "/channels/{channel.id}/messages/{message.id}" ;;
-    "create-message")
-        request "POST" "/channels/{channel.id}/messages" ;;
-    "create-reaction")
-        request "PUT" "/channels/{channel.id}/messages/{message.id}/reactions/{emoji}/@me" ;;
-    "delete-own-reaction")
-        request "DELETE" "/channels/{channel.id}/messages/{message.id}/reactions/{emoji}/@me" ;;
-    "delete-user-reaction")
-        request "DELETE" "/channels/{channel.id}/messages/{message.id}/reactions/{emoji}/{user.id}" ;;
-    "get-reactions")
-        request "GET" "/channels/{channel.id}/messages/{message.id}/reactions/{emoji}" ;;
-    "delete-all-reactions")
-        request "DELETE" "/channels/{channel.id}/messages/{message.id}/reactions" ;;
-    "edit-message")
-        request "PATCH" "/channels/{channel.id}/messages/{message.id}" ;;
-    "delete-message")
-        request "DELETE" "/channels/{channel.id}/messages/{message.id}" ;;
-    "bulk-delete-messages")
-        request "POST" "/channels/{channel.id}/messages/bulk-delete" ;;
-    "edit-channel-permissions")
-        request "PUT" "/channels/{channel.id}/permissions/{overwrite.id}" ;;
-    "get-channel-invites")
-        request "GET" "/channels/{channel.id}/invites" ;;
-    "create-channel-invite")
-        request "POST" "/channels/{channel.id}/invites" ;;
-    "delete-channel-permission")
-        request "DELETE" "/channels/{channel.id}/permissions/{overwrite.id}" ;;
-    "trigger-typing-indicator")
-        request "POST" "/channels/{channel.id}/typing" ;;
-    "get-pinned-messages")
-        request "GET" "/channels/{channel.id}/pins" ;;
-    "add-pinned-channel-message")
-        request "PUT" "/channels/{channel.id}/pins/{message.id}" ;;
-    "delete-pinned-channel-message")
-        request "DELETE" "/channels/{channel.id}/pins/{message.id}" ;;
-    "group-dm-add-recipient")
-        request "PUT" "/channels/{channel.id}/recipients/{user.id}" ;;
-    "group-dm-remove-recipient")
-        request "DELETE" "/channels/{channel.id}/recipients/{user.id}" ;;
+    'get-channel')
+        request 'GET' '/channels/{channel.id}' ;;
+    'modify-channel')
+        request 'PUT' '/channels/{channel.id}' ;;
+    'delete-channel'|'close-channel')
+        request 'DELETE' '/channels/{channel.id}' ;;
+    'get-channel-messages')
+        request 'GET' '/channels/{channel.id}/messages' ;;
+    'get-channel-message')
+        request 'GET' '/channels/{channel.id}/messages/{message.id}' ;;
+    'create-message')
+        request 'POST' '/channels/{channel.id}/messages' ;;
+    'create-reaction')
+        request 'PUT' '/channels/{channel.id}/messages/{message.id}/reactions/{emoji}/@me' ;;
+    'delete-own-reaction')
+        request 'DELETE' '/channels/{channel.id}/messages/{message.id}/reactions/{emoji}/@me' ;;
+    'delete-user-reaction')
+        request 'DELETE' '/channels/{channel.id}/messages/{message.id}/reactions/{emoji}/{user.id}' ;;
+    'get-reactions')
+        request 'GET' '/channels/{channel.id}/messages/{message.id}/reactions/{emoji}' ;;
+    'delete-all-reactions')
+        request 'DELETE' '/channels/{channel.id}/messages/{message.id}/reactions' ;;
+    'edit-message')
+        request 'PATCH' '/channels/{channel.id}/messages/{message.id}' ;;
+    'delete-message')
+        request 'DELETE' '/channels/{channel.id}/messages/{message.id}' ;;
+    'bulk-delete-messages')
+        request 'POST' '/channels/{channel.id}/messages/bulk-delete' ;;
+    'edit-channel-permissions')
+        request 'PUT' '/channels/{channel.id}/permissions/{overwrite.id}' ;;
+    'get-channel-invites')
+        request 'GET' '/channels/{channel.id}/invites' ;;
+    'create-channel-invite')
+        request 'POST' '/channels/{channel.id}/invites' ;;
+    'delete-channel-permission')
+        request 'DELETE' '/channels/{channel.id}/permissions/{overwrite.id}' ;;
+    'trigger-typing-indicator')
+        request 'POST' '/channels/{channel.id}/typing' ;;
+    'get-pinned-messages')
+        request 'GET' '/channels/{channel.id}/pins' ;;
+    'add-pinned-channel-message')
+        request 'PUT' '/channels/{channel.id}/pins/{message.id}' ;;
+    'delete-pinned-channel-message')
+        request 'DELETE' '/channels/{channel.id}/pins/{message.id}' ;;
+    'group-dm-add-recipient')
+        request 'PUT' '/channels/{channel.id}/recipients/{user.id}' ;;
+    'group-dm-remove-recipient')
+        request 'DELETE' '/channels/{channel.id}/recipients/{user.id}' ;;
     # Emoji Endpoints
-    "list-guild-emojis")
-        request "GET" "/guilds/{guild.id}/emojis" ;;
-    "get-guild-emoji")
-        request "GET" "/guilds/{guild.id}/emojis/{emoji.id}" ;;
-    "create-guild-emoji")
-        request "POST" "/guilds/{guild.id}/emojis" ;;
-    "modify-guild-emoji")
-        request "PATCH" "/guilds/{guild.id}/emojis/{emoji.id}" ;;
-    "delete-guild-emoji")
-        request "DELETE" "/guilds/{guild.id}/emojis/{emoji.id}" ;;
+    'list-guild-emojis')
+        request 'GET' '/guilds/{guild.id}/emojis' ;;
+    'get-guild-emoji')
+        request 'GET' '/guilds/{guild.id}/emojis/{emoji.id}' ;;
+    'create-guild-emoji')
+        request 'POST' '/guilds/{guild.id}/emojis' ;;
+    'modify-guild-emoji')
+        request 'PATCH' '/guilds/{guild.id}/emojis/{emoji.id}' ;;
+    'delete-guild-emoji')
+        request 'DELETE' '/guilds/{guild.id}/emojis/{emoji.id}' ;;
     # Guild Endpoints
-    "create-guild")
-        request "POST" "/guilds" ;;
-    "get-guild")
-        request "GET" "/guilds/{guild.id}" ;;
-    "modify-guild")
-        request "PATCH" "/guilds/{guild.id}" ;;
-    "delete-guild")
-        request "DELETE" "/guilds/{guild.id}" ;;
-    "get-guild-channels")
-        request "GET" "/guilds/{guild.id}/channels" ;;
-    "create-guild-channel")
-        request "POST" "/guilds/{guild.id}/channels" ;;
-    "modify-guild-channel-positions")
-        request "PATCH" "/guilds/{guild.id}/channels" ;;
-    "get-guild-member")
-        request "GET" "/guilds/{guild.id}/members/{user.id}" ;;
-    "list-guild-members")
-        request "GET" "/guilds/{guild.id}/members" ;;
-    "add-guild-member")
-        request "PUT" "/guilds/{guild.id}/members/{user.id}" ;;
-    "modify-guild-member")
-        request "PATCH" "/guilds/{guild.id}/members/{user.id}" ;;
-    "modify-current-user-nick")
-        request "PATCH" "/guilds/{guild.id}/members/@me/nick" ;;
-    "add-guild-member-role")
-        request "PUT" "/guilds/{guild.id}/members/{user.id}/roles/{role.id}" ;;
-    "remove-guild-member-role")
-        request "DELETE" "/guilds/{guild.id}/members/{user.id}/roles/{role.id}" ;;
-    "remove-guild-member")
-        request "DELETE" "/guilds/{guild.id}/members/{user.id}" ;;
-    "get-guild-bans")
-        request "GET" "/guilds/{guild.id}/bans" ;;
-    "get-guild-ban")
-        request "GET" "/guilds/{guild.id}/bans/{user.id}" ;;
-    "create-guild-ban")
-        request "PUT" "/guilds/{guild.id}/bans/{user.id}" ;;
-    "remove-guild-ban")
-        request "DELETE" "/guilds/{guild.id}/bans/{user.id}" ;;
-    "get-guild-roles")
-        request "GET" "/guilds/{guild.id}/roles" ;;
-    "create-guild-role")
-        request "POST" "/guilds/{guild.id}/roles" ;;
-    "modify-guild-role-positions")
-        request "PATCH" "/guilds/{guild.id}/roles" ;;
-    "modify-guild-role")
-        request "PATCH" "/guilds/{guild.id}/roles/{role.id}" ;;
-    "delete-guild-role")
-        request "DELETE" "/guilds/{guild.id}/roles/{role.id}" ;;
-    "get-guild-prune-count")
-        request "GET" "/guilds/{guild.id}/prune" ;;
-    "begin-guild-prune")
-        request "POST" "/guilds/{guild.id}/prune" ;;
-    "get-guild-voice-regions")
-        request "GET" "/guilds/{guild.id}/regions" ;;
-    "get-guild-invites")
-        request "GET" "/guilds/{guild.id}/invites" ;;
-    "get-guild-integrations")
-        request "GET" "/guilds/{guild.id}/integrations" ;;
-    "create-guild-integration")
-        request "POST" "/guilds/{guild.id}/integrations" ;;
-    "modify-guild-integration")
-        request "PATCH" "/guilds/{guild.id}/integrations/{integration.id}" ;;
-    "delete-guild-integration")
-        request "DELETE" "/guilds/{guild.id}/integrations/{integration.id}" ;;
-    "sync-guild-integration")
-        request "POST" "/guilds/{guild.id}/integrations/{integration.id}/sync" ;;
-    "get-guild-embed")
-        request "GET" "/guilds/{guild.id}/embed" ;;
-    "modify-guild-embed")
-        request "PATCH" "/guilds/{guild.id}/embed" ;;
-    "get-guild-vanity-url")
-        request "GET" "/guilds/{guild.id}/vanity-url" ;;
+    'create-guild')
+        request 'POST' '/guilds' ;;
+    'get-guild')
+        request 'GET' '/guilds/{guild.id}' ;;
+    'modify-guild')
+        request 'PATCH' '/guilds/{guild.id}' ;;
+    'delete-guild')
+        request 'DELETE' '/guilds/{guild.id}' ;;
+    'get-guild-channels')
+        request 'GET' '/guilds/{guild.id}/channels' ;;
+    'create-guild-channel')
+        request 'POST' '/guilds/{guild.id}/channels' ;;
+    'modify-guild-channel-positions')
+        request 'PATCH' '/guilds/{guild.id}/channels' ;;
+    'get-guild-member')
+        request 'GET' '/guilds/{guild.id}/members/{user.id}' ;;
+    'list-guild-members')
+        request 'GET' '/guilds/{guild.id}/members' ;;
+    'add-guild-member')
+        request 'PUT' '/guilds/{guild.id}/members/{user.id}' ;;
+    'modify-guild-member')
+        request 'PATCH' '/guilds/{guild.id}/members/{user.id}' ;;
+    'modify-current-user-nick')
+        request 'PATCH' '/guilds/{guild.id}/members/@me/nick' ;;
+    'add-guild-member-role')
+        request 'PUT' '/guilds/{guild.id}/members/{user.id}/roles/{role.id}' ;;
+    'remove-guild-member-role')
+        request 'DELETE' '/guilds/{guild.id}/members/{user.id}/roles/{role.id}' ;;
+    'remove-guild-member')
+        request 'DELETE' '/guilds/{guild.id}/members/{user.id}' ;;
+    'get-guild-bans')
+        request 'GET' '/guilds/{guild.id}/bans' ;;
+    'get-guild-ban')
+        request 'GET' '/guilds/{guild.id}/bans/{user.id}' ;;
+    'create-guild-ban')
+        request 'PUT' '/guilds/{guild.id}/bans/{user.id}' ;;
+    'remove-guild-ban')
+        request 'DELETE' '/guilds/{guild.id}/bans/{user.id}' ;;
+    'get-guild-roles')
+        request 'GET' '/guilds/{guild.id}/roles' ;;
+    'create-guild-role')
+        request 'POST' '/guilds/{guild.id}/roles' ;;
+    'modify-guild-role-positions')
+        request 'PATCH' '/guilds/{guild.id}/roles' ;;
+    'modify-guild-role')
+        request 'PATCH' '/guilds/{guild.id}/roles/{role.id}' ;;
+    'delete-guild-role')
+        request 'DELETE' '/guilds/{guild.id}/roles/{role.id}' ;;
+    'get-guild-prune-count')
+        request 'GET' '/guilds/{guild.id}/prune' ;;
+    'begin-guild-prune')
+        request 'POST' '/guilds/{guild.id}/prune' ;;
+    'get-guild-voice-regions')
+        request 'GET' '/guilds/{guild.id}/regions' ;;
+    'get-guild-invites')
+        request 'GET' '/guilds/{guild.id}/invites' ;;
+    'get-guild-integrations')
+        request 'GET' '/guilds/{guild.id}/integrations' ;;
+    'create-guild-integration')
+        request 'POST' '/guilds/{guild.id}/integrations' ;;
+    'modify-guild-integration')
+        request 'PATCH' '/guilds/{guild.id}/integrations/{integration.id}' ;;
+    'delete-guild-integration')
+        request 'DELETE' '/guilds/{guild.id}/integrations/{integration.id}' ;;
+    'sync-guild-integration')
+        request 'POST' '/guilds/{guild.id}/integrations/{integration.id}/sync' ;;
+    'get-guild-embed')
+        request 'GET' '/guilds/{guild.id}/embed' ;;
+    'modify-guild-embed')
+        request 'PATCH' '/guilds/{guild.id}/embed' ;;
+    'get-guild-vanity-url')
+        request 'GET' '/guilds/{guild.id}/vanity-url' ;;
     # Invite Endpoints
-    "get-invite")
-        request "GET" "/invites/{invite.code}" ;;
-    "delete-invite")
-        request "DELETE" "/invites/{invite.code}" ;;
+    'get-invite')
+        request 'GET' '/invites/{invite.code}' ;;
+    'delete-invite')
+        request 'DELETE' '/invites/{invite.code}' ;;
     # User Endpoints
-    "get-current-user")
-        request "GET" "/users/@me" ;;
-    "get-user")
-        request "GET" "/users/{user.id}" ;;
-    "modify-current-user")
-        request "PATCH" "/users/@me" ;;
-    "get-current-user-guilds")
-        request "GET" "/users/@me/guilds" ;;
-    "leave-guild")
-        request "DELETE" "/users/@me/guilds/{guild.id}" ;;
-    "get-user-dms")
-        request "GET" "/users/@me/channels" ;;
-    "create-dm")
-        request "POST" "/users/@me/channels" ;;
-    "create-group-dm")
-        request "POST" "/users/@me/channels" ;;
-    "get-user-connections")
-        request "GET" "/users/@me/connections" ;;
+    'get-current-user')
+        request 'GET' '/users/@me' ;;
+    'get-user')
+        request 'GET' '/users/{user.id}' ;;
+    'modify-current-user')
+        request 'PATCH' '/users/@me' ;;
+    'get-current-user-guilds')
+        request 'GET' '/users/@me/guilds' ;;
+    'leave-guild')
+        request 'DELETE' '/users/@me/guilds/{guild.id}' ;;
+    'get-user-dms')
+        request 'GET' '/users/@me/channels' ;;
+    'create-dm')
+        request 'POST' '/users/@me/channels' ;;
+    'create-group-dm')
+        request 'POST' '/users/@me/channels' ;;
+    'get-user-connections')
+        request 'GET' '/users/@me/connections' ;;
     # Voice Endpoints
-    "list-voice-regions")
-        request "GET" "/voice/regions" ;;
+    'list-voice-regions')
+        request 'GET' '/voice/regions' ;;
     # Webhook Endpoints
-    "create-webhook")
-        request "POST" "/channels/{channel.id}/webhooks" ;;
-    "get-channel-webhooks")
-        request "GET" "/channels/{channel.id}/webhooks" ;;
-    "get-guild-webhooks")
-        request "GET" "/guilds/{guild.id}/webhooks" ;;
-    "get-webhook")
-        request "GET" "/webhooks/{webhook.id}" ;;
-    "get-webhook-with-token")
-        request "GET" "/webhooks/{webhook.id}/{webhook.token}" ;;
-    "modify-webhook")
-        request "PATCH" "/webhooks/{webhook.id}" ;;
-    "modify-webhook-with-token")
-        request "PATCH" "/webhooks/{webhook.id}/{webhook.token}" ;;
-    "delete-webhook")
-        request "DELETE" "/webhooks/{webhook.id}" ;;
-    "delete-webhook-with-token")
-        request "DELETE" "/webhooks/{webhook.id}/{webhook.token}" ;;
-    "execute-webhook")
-        request "POST" "/webhooks/{webhook.id}/{webhook.token}" ;;
-    "execute-slack-compatible-webhook")
-        request "POST" "/webhooks/{webhook.id}/{webhook.token}/slack" ;;
-    "execute-github-compatible-webhook")
-        request "POST" "/webhooks/{webhook.id}/{webhook.token}/github" ;;
+    'create-webhook')
+        request 'POST' '/channels/{channel.id}/webhooks' ;;
+    'get-channel-webhooks')
+        request 'GET' '/channels/{channel.id}/webhooks' ;;
+    'get-guild-webhooks')
+        request 'GET' '/guilds/{guild.id}/webhooks' ;;
+    'get-webhook')
+        request 'GET' '/webhooks/{webhook.id}' ;;
+    'get-webhook-with-token')
+        request 'GET' '/webhooks/{webhook.id}/{webhook.token}' ;;
+    'modify-webhook')
+        request 'PATCH' '/webhooks/{webhook.id}' ;;
+    'modify-webhook-with-token')
+        request 'PATCH' '/webhooks/{webhook.id}/{webhook.token}' ;;
+    'delete-webhook')
+        request 'DELETE' '/webhooks/{webhook.id}' ;;
+    'delete-webhook-with-token')
+        request 'DELETE' '/webhooks/{webhook.id}/{webhook.token}' ;;
+    'execute-webhook')
+        request 'POST' '/webhooks/{webhook.id}/{webhook.token}' ;;
+    'execute-slack-compatible-webhook')
+        request 'POST' '/webhooks/{webhook.id}/{webhook.token}/slack' ;;
+    'execute-github-compatible-webhook')
+        request 'POST' '/webhooks/{webhook.id}/{webhook.token}/github' ;;
     *)
         log_error "Unsupported method \"$method\""
         exit 1
