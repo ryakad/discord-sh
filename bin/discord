@@ -53,6 +53,8 @@ request() {
     endpoint_url="$(replace_tokens "$2")"
     body="$3"
 
+    log_debug "Making '$http_verb' request to '$endpoint_url'"
+
     # Build up the curl request
     curl_opts="-sS -v -H 'Content-Type: application/json'"
     curl_opts=$curl_opts" -H 'Authorization: $DISCORDSH_API_TOKEN'"
@@ -124,47 +126,56 @@ replace_tokens() {
     path="$1"
     if echo $path | grep -q "{guild.id}"
     then
-        path=$(replace_token "$path" "{guild.id}" "OPTS_GUILD" "-g|--guild-id")
+        path=$(replace_token "$path" "{guild.id}" "OPTS_GUILD" "-g")
+        log_debug "Path replacement performed for {guild.id}. New request path is '$path'"
     fi
 
     if echo $path | grep -q "{channel.id}"
     then
-        path=$(replace_token "$path" "{channel.id}" "OPTS_CHANNEL" "-c|--channel-id")
+        path=$(replace_token "$path" "{channel.id}" "OPTS_CHANNEL" "-c")
+        log_debug "Path replacement performed for {channel.id}. New request path is '$path'"
     fi
 
     if echo $path | grep -q "{user.id}"
     then
-        path=$(replace_token "$path" "{user.id}" "OPTS_USER" "-u|--user-id")
+        path=$(replace_token "$path" "{user.id}" "OPTS_USER" "-u")
+        log_debug "Path replacement performed for {user.id}. New request path is '$path'"
     fi
 
     if echo $path | grep -q "{message.id}"
     then
-        path=$(replace_token "$path" "{message.id}" "OPTS_MESSAGE" "-m|--message-id")
+        path=$(replace_token "$path" "{message.id}" "OPTS_MESSAGE" "-m")
+        log_debug "Path replacement performed for {message.id}. New request path is '$path'"
     fi
 
     if echo $path | grep -q "{webhook.id}"
     then
-        path=$(replace_token "$path" "{webhook.id}" "OPTS_WEBHOOK_ID" "-w|--webhook-id")
+        path=$(replace_token "$path" "{webhook.id}" "OPTS_WEBHOOK_ID" "-w")
+        log_debug "Path replacement performed for {webhook.id}. New request path is '$path'"
     fi
 
     if echo $path | grep -q "{webhook.token}"
     then
-        path=$(replace_token "$path" "{webhook.id}" "OPTS_WEBHOOK_TOKEN" "-t|--webhook-token")
+        path=$(replace_token "$path" "{webhook.token}" "OPTS_WEBHOOK_TOKEN" "-t")
+        log_debug "Path replacement performed for {webhook.token}. New request path is '$path'"
     fi
 
     if echo $path | grep -q "{integration.id}"
     then
-        path=$(replace_token "$path" "{integration.id}" "OPTS_INTEGRATION" "-i|--integration-id")
+        path=$(replace_token "$path" "{integration.id}" "OPTS_INTEGRATION" "-i")
+        log_debug "Path replacement performed for {integration.id}. New request path is '$path'"
     fi
 
     if echo $path | grep -q "{overwrite.id}"
     then
-        path=$(replace_token "$path" "{overwrite.id}" "OPTS_OVERWRITE" "-o|--overwrite-id")
+        path=$(replace_token "$path" "{overwrite.id}" "OPTS_OVERWRITE" "-o")
+        log_debug "Path replacement performed for {overwrite.id}. New request path is '$path'"
     fi
 
     if echo $path | grep -q "{emoji}"
     then
-        path=$(replace_token "$path" "{emoji}" "OPTS_EMOJI" "-e|--emoji")
+        path=$(replace_token "$path" "{emoji}" "OPTS_EMOJI" "-e")
+        log_debug "Path replacement performed for {emoji}. New request path is '$path'"
     fi
 
     echo $path
@@ -188,6 +199,9 @@ test -z $DISCORDSH_API_BASE_URL && DISCORDSH_API_BASE_URL="https://discordapp.co
 # Whether we want to be showing debug information
 test -z $DISCORDSH_API_DEBUG && DISCORDSH_API_DEBUG=false
 
+# Handle these options first since getopt will overwrite all command line
+# options and we want to allow searching for 'help' and 'version' without any
+# prefixed dashes.
 if echo "$@" | grep -qE "\-\-help|help|\-h"
 then
   echo "TODO - Display help message"
@@ -200,46 +214,51 @@ then
   exit 0
 fi
 
-OPTS=$(getopt -o "h:v:g:u:c:m:o:i:e:" --long "help:,version:,guild:,user:,channel:,message:,overwrite:,webhook-id:,webhook-token:,integration:,emoji:" -- "$@")
-eval set -- "$OPTS"
-
 method="$1"
+shift
+
+log_debug "Script called with endpoint "$method
+
+opts=$(getopt h:v:g:u:c:m:o:i:e: $*)
+eval set -- $opts
 while true
 do
+    log_debug "Parsing command option '$1' = '$2'"
+
     case "$1" in
-        -g|--guild)
+        -g) # Guild ID
             OPTS_GUILD="$2"
             shift 2
             ;;
-        -u|--user)
+        -u) # User ID
             OPTS_USER="$2"
             shift 2
             ;;
-        -c|--channel)
+        -c) # Channel ID
             OPTS_CHANNEL="$2"
             shift 2
             ;;
-        -m|--message)
+        -m) # Message ID
             OPTS_MESSAGE="$2"
             shift 2
             ;;
-        -o|--overwrite)
+        -p) # Permission Overwrite ID
             OPTS_OVERWRITE="$2"
             shift 2
             ;;
-        --webhook-id)
+        -w) # Webhook ID
             OPTS_WEBHOOK_ID="$2"
             shift 2
             ;;
-        --webhook-token)
+        -t) # Webhook Token
             OPTS_WEBHOOK_TOKEN="$2"
             shift 2
             ;;
-        -i|--integration)
+        -i) # Integration ID
             OPTS_INTEGRATION="$2"
             shift 2
             ;;
-        -e|--emoji)
+        -e) # Emoji
             OPTS_EMOJI="$2"
             shift 2
             ;;
