@@ -18,9 +18,9 @@ This script supports the full REST API documented at <https://discordapp.com/dev
 ## Installation
 
 ```sh
-# Download the script somewhere where your shell can find it
-curl -o /usr/bin/discord https://raw.githubusercontent.com/ryakad/discord-sh/develop/bin/discord
-chmod +x /usr/bin/discord
+# Download the script somewhere on your shell's search path. Note that you may need to add ~/bin/ to your $PATH
+curl -Lo ~/bin/discord --create-dirs "https://raw.githubusercontent.com/ryakad/discord-sh/master/bin/discord"
+chmod +x ~/bin/discord
 
 # Export your authentication token
 export DISCORDSH_API_TOKEN="Bot ....."
