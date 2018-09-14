@@ -43,6 +43,22 @@ log_multiline() {
     done <<< "$2"
 }
 
+# Return the value for a requested response header
+#
+# $1 - The response header we want the value for
+# $2 - String containing all headings with 1 heading per line
+get_response_header() {
+    echo "$2" | grep -E "^$1:" | sed "s/^[^:]*: //" | sed 's/[^0-9]*//g'
+}
+
+# Parse out the status code from the curl response so we can check for rate
+# error states
+#
+# $1 - stderr returned from curl
+get_response_status() {
+    echo "$1" | grep -E "^< HTTP/2" | sed -E "s/^< HTTP\/2 ([0-9]{3})/\1/" | sed 's/[^0-9]*//g'
+}
+
 # Make an HTTP request using CURL
 #
 # $1 - The HTP verb to use for this request
@@ -76,36 +92,57 @@ request() {
     if [ ! -z "$DISCORDSH_STDIN" ]
     then
         curl_opts=$curl_opts" -d '$DISCORDSH_STDIN'"
+    elif [ "$http_verb" == "POST" ]
+    then
+        # We are making a post request but have not passed in any data on STDIN
+        # so we still need to set the content length so just setting data to an
+        # empty string.
+        curl_opts=$curl_opts" -d ''"
     fi
 
     # Do not display the users auth token in log messages
     log_debug "Using curl options: "$(echo $curl_opts \
         | sed "s/Authorization: [^']*/Authorization: *****/")
 
-    curl_stderr_file="$(mktemp)"
-    response_stdout=$(eval curl $curl_opts "$DISCORDSH_API_BASE_URL$endpoint_url" 2>$curl_stderr_file)
-    response_stderr="$(cat "$curl_stderr_file")"
-    rm -f "$curl_stderr_file"
+    # Start pessimistic of rate limiting
+    while true
+    do
+        curl_stderr_file="$(mktemp)"
+        response_stdout=$(eval curl $curl_opts "$DISCORDSH_API_BASE_URL$endpoint_url" 2>$curl_stderr_file)
+        response_stderr="$(cat "$curl_stderr_file")"
+        rm -f "$curl_stderr_file"
 
-    log_debug "Response stdout: $response_stdout"
-    log_multiline log_debug "$response_stderr" "Response stderr:"
+        log_debug "Response stdout: $response_stdout"
+        log_multiline log_debug "$response_stderr" "Response stderr:"
 
-    # Transform the response headers into an array
-    response_headers=$(echo "$response_stderr" \
-        | grep -E '^<' \
-        | sed 's/< //')
+        response_status=$(get_response_status "$response_stderr")
+        # Transform the response headers into an array
+        response_headers=$(echo "$response_stderr" \
+            | grep -E '^<' \
+            | sed 's/< //')
+
+        rate_limit_remaining=$(get_response_header "x-ratelimit-remaining" "$response_headers")
+        rate_limit_reset=$(get_response_header "x-ratelimit-reset" "$response_headers")
+
+        log_debug "Response Status Code: '$(echo $response_status)'"
+        log_debug "Rate Limit Remaining: $rate_limit_remaining"
+        log_debug "Rate Limit Reset: $rate_limit_reset"
+
+        if [ "$response_status" = "429" ]
+        then
+          while [ "$(date +%s)" -lt "$rate_limit_reset" ]
+          do
+            log_warning "Rate Limited, Sleeping until rate limit reset..."
+            sleep 1
+          done
+        else
+            break
+        fi
+    done
 
     # TODO - Handle rate limiting
 
     echo "$response_stdout" | jq
-}
-
-# Return the value for a requested response header
-#
-# $1 - The response header we want the value for
-# $2 - String containing all headings with 1 heading per line
-get_response_header() {
-    echo "$2" | grep -E "^$1:" | sed "s/^[^:]*: //"
 }
 
 replace_token() {
