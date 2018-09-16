@@ -43,6 +43,33 @@ log_multiline() {
     done <<< "$2"
 }
 
+# Capture STDIN
+if [ ! -t 0 ]
+then
+    while read line
+    do
+        if [ -z "$DISCORDSH_STDIN" ]
+        then
+            DISCORDSH_STDIN="$line"
+        else
+            DISCORDSH_STDIN="$DISCORDSH_STDIN\n$line"
+        fi
+    done < /dev/stdin
+    log_debug "Setting STDIN to '$DISCORDSH_STDIN'"
+fi
+
+if [ ! -z "$DISCORDSH_STDIN" ]
+then
+    if ! echo "$DISCORDSH_STDIN" | jq . >/dev/null
+    then
+        log_error "Invalid json provided on stdin"
+        exit 1
+    fi
+
+    # Need to compress the JSON or the curl requests will not work.
+    DISCORDSH_STDIN="$(echo "$DISCORDSH_STDIN" | jq -c .)"
+fi
+
 # Return the value for a requested response header
 #
 # $1 - The response header we want the value for
@@ -86,18 +113,18 @@ request() {
     # assumed by default.
     if ! echo "$http_verb" | grep "GET" 2>&1 >/dev/null
     then
-        curl_opts=$curl_opts" -X $http_verb"
+        curl_opts=$curl_opts" --request $http_verb"
     fi
 
     if [ ! -z "$DISCORDSH_STDIN" ]
     then
-        curl_opts=$curl_opts" -d '$DISCORDSH_STDIN'"
+        curl_opts=$curl_opts" --data-raw '$DISCORDSH_STDIN'"
     elif [ "$http_verb" == "POST" ]
     then
         # We are making a post request but have not passed in any data on STDIN
         # so we still need to set the content length so just setting data to an
         # empty string.
-        curl_opts=$curl_opts" -d ''"
+        curl_opts=$curl_opts" --data-raw ''"
     fi
 
     # Do not display the users auth token in log messages
@@ -145,9 +172,8 @@ request() {
     echo "$response_stdout" | jq
 }
 
+# Replace the tokens in urls with the values passed as CLI options
 replace_token() {
-    log_debug "Replacing \"$2\" tag..."
-
     if [ -z "${!3}" ]
     then
         log_error "Missing required option $4"
@@ -183,6 +209,12 @@ replace_tokens() {
     then
         path=$(replace_token "$path" "{message.id}" "OPTS_MESSAGE" "-m")
         log_debug "Path replacement performed for {message.id}. New request path is '$path'"
+    fi
+
+    if echo $path | grep -q "{role.id}"
+    then
+        path=$(replace_token "$path" "{role.id}" "OPTS_ROLE" "-m")
+        log_debug "Path replacement performed for {role.id}. New request path is '$path'"
     fi
 
     if echo $path | grep -q "{webhook.id}"
@@ -256,7 +288,7 @@ shift
 
 log_debug "Script called with endpoint "$method
 
-opts=$(getopt h:v:g:u:c:m:o:i:e: $*)
+opts=$(getopt h:v:g:u:c:m:o:i:e:r: $*)
 eval set -- $opts
 while true
 do
@@ -277,6 +309,10 @@ do
             ;;
         -m) # Message ID
             OPTS_MESSAGE="$2"
+            shift 2
+            ;;
+        -r) # Role ID
+            OPTS_ROLE="$2"
             shift 2
             ;;
         -p) # Permission Overwrite ID
@@ -309,29 +345,6 @@ do
             ;;
     esac
 done
-
-if [ ! -t 0 ]
-then
-    while read -r line
-    do
-        if [ -z "$DISCORDSH_STDIN" ]
-        then
-            DISCORDSH_STDIN="$line"
-        else
-            DISCORDSH_STDIN="$DISCORDSH_STDIN\n$line"
-        fi
-    done
-fi
-
-if [ ! -z "$DISCORDSH_STDIN" ]
-then
-    log_debug "Reading json from stdin $DISCORDSH_STDIN"
-    if ! echo "$DISCORDSH_STDIN" | jq . >/dev/null
-    then
-        log_error "Invalid json provided on stdin"
-        exit 1
-    fi
-fi
 
 case $method in
     # Audit Log endpoints
