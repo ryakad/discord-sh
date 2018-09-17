@@ -159,3 +159,11 @@ echo '{ "content": "Testing Message" }' | discord create-message -c 000000000000
 # Delete the #testing channel
 discord delete-channel -c 000000000000000000
 ```
+
+## Using with Docker
+
+There is a Docker image available on DockerHub at [ryakad/discord-sh](https://hub.docker.com/r/ryakad/discord-sh/). To use the image simply pull it and run the commands within the container like:
+
+```
+docker run --rm -e DISCORDSH_API_TOKEN -it ryakad/discord-sh:0.0.0 discord version
+```

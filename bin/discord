@@ -12,20 +12,19 @@ DISCORDSH_USER_AGENT="DiscordBot (https://github.com/ryakad/discord-sh, $DISCORD
 DISCORDSH_BASEPATH="$(dirname $0)/.."
 DISCORDSH_ENDPOINTS_DIR="$DISCORDSH_BASEPATH/endpoints"
 
-color_reset="\033[0m"
-test -z $DISCORDSH_COLOR_ERROR && DISCORDSH_COLOR_ERROR="\033[1;31m" # red
+# Whether we want to be showing debug information
+test -z $DISCORDSH_DEBUG && DISCORDSH_DEBUG=false
+
 log_error() {
-    echo "$DISCORDSH_COLOR_ERROR[ERROR] $@$color_reset" 1>&2
+    $DISCORDSH_DEBUG && echo "[ERROR] $@" 1>&2
 }
 
-test -z $DISCORDSH_COLOR_WARNING && DISCORDSH_COLOR_WARNING="\033[0;33m" # yellow
 log_warning() {
-    echo "$DISCORDSH_COLOR_WARNING[WARNING] $@$color_reset" 1>&2
+    $DISCORDSH_DEBUG && echo "[WARNING] $@" 1>&2
 }
 
-test -z $DISCORDSH_COLOR_DEBUG && DISCORDSH_COLOR_DEBUG="" # off by default
 log_debug() {
-    echo "$DISCORDSH_COLOR_DEBUG[DEBUG] $@$color_reset" 1>&2
+    $DISCORDSH_DEBUG && echo "[DEBUG] $@" 1>&2
 }
 
 # Function for multiline logging to allow prefixing each line with the log
@@ -33,14 +32,11 @@ log_debug() {
 #
 # $1 - The logging function to use
 # $2 - A string containing the multiline output
-# $3 - An optional heading for the log. This will be printed before writing
-#      the multiline output
 log_multiline() {
-    [ ! -z "$3" ] && eval $1 "$3" # If a header is provided log that first
-    while read -r line
+    echo "$2" | while read -r line
     do
-        eval $1 $(printf "    %q" "$line")
-    done <<< "$2"
+        eval "$1 \"$line\""
+    done
 }
 
 # Capture STDIN
@@ -86,6 +82,14 @@ get_response_status() {
     echo "$1" | grep -E "^< HTTP/2" | sed -E "s/^< HTTP\/2 ([0-9]{3})/\1/" | sed 's/[^0-9]*//g'
 }
 
+# Redact the auth token from output. Call this on any output that may contain the
+# users auth token.
+#
+# $1 - The content to redact the authorization token from
+redact_auth_token() {
+  echo "$1" | sed "s/Authorization: [^']*/Authorization: \[REDACTED\]/"
+}
+
 # Make an HTTP request using CURL
 #
 # $1 - The HTP verb to use for this request
@@ -93,10 +97,16 @@ get_response_status() {
 # $3 - The data to submit (if any)
 request() {
     http_verb="$1"
-    endpoint_url="$(replace_tokens "$2")"
+    path="$2"
     body="$3"
 
-    log_debug "Making '$http_verb' request to '$endpoint_url'"
+    # This function works on the global $path variable. There is no return
+    # value as this is edited in place to allow us to exit this script from the
+    # functions. Originally this was done in subshells which caused the `exit`
+    # to only affect that subshell.
+    replace_tokens "$path"
+
+    log_debug "Making '$http_verb' request to '$path'"
 
     # Build up the curl request
     curl_opts="-sS -v -H 'Content-Type: application/json'"
@@ -128,25 +138,24 @@ request() {
     fi
 
     # Do not display the users auth token in log messages
-    log_debug "Using curl options: "$(echo $curl_opts \
-        | sed "s/Authorization: [^']*/Authorization: *****/")
+    log_debug "Using curl options: "$(redact_auth_token "$curl_opts")
 
     # Start pessimistic of rate limiting
     while true
     do
         curl_stderr_file="$(mktemp)"
-        response_stdout=$(eval curl $curl_opts "$DISCORDSH_API_BASE_URL$endpoint_url" 2>$curl_stderr_file)
-        response_stderr="$(cat "$curl_stderr_file")"
+        response_stdout=$(eval curl $curl_opts "$DISCORDSH_API_BASE_URL$path" 2>$curl_stderr_file)
+        response_stderr="$(redact_auth_token "$(cat "$curl_stderr_file")")"
         rm -f "$curl_stderr_file"
 
         log_debug "Response stdout: $response_stdout"
-        log_multiline log_debug "$response_stderr" "Response stderr:"
+        log_multiline log_debug "$response_stderr"
 
-        response_status=$(get_response_status "$response_stderr")
+        response_status="$(get_response_status "$response_stderr")"
         # Transform the response headers into an array
-        response_headers=$(echo "$response_stderr" \
+        response_headers="$(echo "$response_stderr" \
             | grep -E '^<' \
-            | sed 's/< //')
+            | sed 's/< //')"
 
         rate_limit_remaining=$(get_response_header "x-ratelimit-remaining" "$response_headers")
         rate_limit_reset=$(get_response_header "x-ratelimit-reset" "$response_headers")
@@ -167,106 +176,42 @@ request() {
         fi
     done
 
-    # TODO - Handle rate limiting
-
     echo "$response_stdout" | jq
 }
 
 # Replace the tokens in urls with the values passed as CLI options
+#
+# $1 - The token we are looking to replace
+# $2 - The value to use in place of "$2"
+# $3 - The CLI option used to pass this value, used for printing an error message
 replace_token() {
-    if [ -z "${!3}" ]
+    if echo $path | grep -q "$1"
     then
-        log_error "Missing required option $4"
-        exit 1
-    fi
+        if [ -z "$2" ]
+        then
+            log_error "Missing required option $3"
+            exit 1
+        fi
 
-    echo "$1" | sed "s/$2/${!3}/"
+        path="$(echo "$path" | sed "s/$1/$2/")"
+        log_debug "Path replacement performed for $1. New request path is '$path'"
+    fi
 }
 
 replace_tokens() {
-    log_debug "Calling replace_tokens..."
+    log_debug "Looking for tokens to replace..."
 
-    path="$1"
-    if echo $path | grep -q "{guild.id}"
-    then
-        path=$(replace_token "$path" "{guild.id}" "OPTS_GUILD" "-g")
-        log_debug "Path replacement performed for {guild.id}. New request path is '$path'"
-    fi
-
-    if echo $path | grep -q "{channel.id}"
-    then
-        path=$(replace_token "$path" "{channel.id}" "OPTS_CHANNEL" "-c")
-        log_debug "Path replacement performed for {channel.id}. New request path is '$path'"
-    fi
-
-    if echo $path | grep -q "{user.id}"
-    then
-        path=$(replace_token "$path" "{user.id}" "OPTS_USER" "-u")
-        log_debug "Path replacement performed for {user.id}. New request path is '$path'"
-    fi
-
-    if echo $path | grep -q "{message.id}"
-    then
-        path=$(replace_token "$path" "{message.id}" "OPTS_MESSAGE" "-m")
-        log_debug "Path replacement performed for {message.id}. New request path is '$path'"
-    fi
-
-    if echo $path | grep -q "{role.id}"
-    then
-        path=$(replace_token "$path" "{role.id}" "OPTS_ROLE" "-m")
-        log_debug "Path replacement performed for {role.id}. New request path is '$path'"
-    fi
-
-    if echo $path | grep -q "{webhook.id}"
-    then
-        path=$(replace_token "$path" "{webhook.id}" "OPTS_WEBHOOK_ID" "-w")
-        log_debug "Path replacement performed for {webhook.id}. New request path is '$path'"
-    fi
-
-    if echo $path | grep -q "{webhook.token}"
-    then
-        path=$(replace_token "$path" "{webhook.token}" "OPTS_WEBHOOK_TOKEN" "-t")
-        log_debug "Path replacement performed for {webhook.token}. New request path is '$path'"
-    fi
-
-    if echo $path | grep -q "{integration.id}"
-    then
-        path=$(replace_token "$path" "{integration.id}" "OPTS_INTEGRATION" "-i")
-        log_debug "Path replacement performed for {integration.id}. New request path is '$path'"
-    fi
-
-    if echo $path | grep -q "{overwrite.id}"
-    then
-        path=$(replace_token "$path" "{overwrite.id}" "OPTS_OVERWRITE" "-o")
-        log_debug "Path replacement performed for {overwrite.id}. New request path is '$path'"
-    fi
-
-    if echo $path | grep -q "{emoji}"
-    then
-        path=$(replace_token "$path" "{emoji}" "OPTS_EMOJI" "-e")
-        log_debug "Path replacement performed for {emoji}. New request path is '$path'"
-    fi
-
-    echo $path
+    replace_token "{guild.id}" "$OPTS_GUILD" "-g"
+    replace_token "{channel.id}" "$OPTS_CHANNEL" "-c"
+    replace_token "{user.id}" "$OPTS_USER" "-u"
+    replace_token "{message.id}" "$OPTS_MESSAGE" "-m"
+    replace_token "{role.id}" "$OPTS_ROLE" "-m"
+    replace_token "{webhook.id}" "$OPTS_WEBHOOK_ID" "-w"
+    replace_token "{webhook.token}" "$OPTS_WEBHOOK_TOKEN" "-t"
+    replace_token "{integration.id}" "$OPTS_INTEGRATION" "-i"
+    replace_token "{overwrite.id}" "$OPTS_OVERWRITE" "-o"
+    replace_token "{emoji}" "$OPTS_EMOJI" "-e"
 }
-
-# This is required. This can either be a bot token or a user token. Using the
-# correct format is up to the user
-#
-# DISCORDSH_API_TOKEN="Bot ...."      # FOR BOTS
-# DISCORDSH_API_TOKEN="Bearer ...."   # FOR OAUTH TOKENS
-#
-if [ -z "$DISCORDSH_API_TOKEN" ]
-then
-    log_error "\$DISCORDSH_API_TOKEN must be set to a valid token"
-    exit 1
-fi
-
-# Base URL for the discord api
-test -z $DISCORDSH_API_BASE_URL && DISCORDSH_API_BASE_URL="https://discordapp.com/api"
-
-# Whether we want to be showing debug information
-test -z $DISCORDSH_API_DEBUG && DISCORDSH_API_DEBUG=false
 
 # Handle these options first since getopt will overwrite all command line
 # options and we want to allow searching for 'help' and 'version' without any
@@ -282,6 +227,21 @@ then
   echo "$DISCORDSH_VERSION"
   exit 0
 fi
+
+# This is required. This can either be a bot token or a user token. Using the
+# correct format is up to the user
+#
+# DISCORDSH_API_TOKEN="Bot ...."      # FOR BOTS
+# DISCORDSH_API_TOKEN="Bearer ...."   # FOR OAUTH TOKENS
+#
+if [ -z "$DISCORDSH_API_TOKEN" ]
+then
+    log_error "\$DISCORDSH_API_TOKEN must be set to a valid token"
+    exit 1
+fi
+
+# Base URL for the discord api
+test -z $DISCORDSH_API_BASE_URL && DISCORDSH_API_BASE_URL="https://discordapp.com/api"
 
 method="$1"
 shift
