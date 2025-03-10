@@ -1,3 +1,7 @@
+> [!WARNING]
+>
+> This is more of an example than a supported library for using the Discord API. Feel free to fork and experiment with it, but please, no issues—I will just close them.
+
 ```
       _ _                       _       _
      | (_)                     | |     | |
@@ -11,9 +15,6 @@ Shell script for integrating with the discord API.
 
 This script supports the full REST API documented at <https://discordapp.com/developers/docs/intro>.
 
-> **STILL IN BETA**
->
-> This script is still in beta while I test the exposed interface more thoroughly. Feel free to use it and provide feedback or open pull requests for any issues you run into. Just be warned that the interface and command line options can change at any point. I will release a 1.0.0 release when I am more confident in the interface at which point I will start to maintain proper backwards compatibility.
 
 ## Installation
 
